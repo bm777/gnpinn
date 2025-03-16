@@ -158,4 +158,74 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Based on the PINN framework developed by Raissi et al.
 - Gradient normalization techniques inspired by Wang et al.
-- SIREN implementation based on the paper by Sitzmann et al. 
+- SIREN implementation based on the paper by Sitzmann et al.
+
+# Crystal Growth Simulation
+
+This project simulates crystal growth using the Navier-Stokes equations and Physics-Informed Neural Networks (PINNs).
+
+## Setup
+
+The project uses a virtual environment named "gradient" for dependency management.
+
+### Activating the Virtual Environment
+
+```bash
+# On macOS/Linux
+source gradient/bin/activate
+
+# On Windows
+gradient\Scripts\activate
+```
+
+### Required Dependencies
+
+After activating the virtual environment, ensure you have the following dependencies:
+
+```bash
+pip install numpy matplotlib torch
+```
+
+## Running the Simulation
+
+### Simple Animation
+
+To generate a series of frames showing the crystal growth:
+
+```bash
+python examples/simple_animation.py --frames 50
+```
+
+Options:
+- `--frames`: Number of frames to generate (default: 50)
+- `--output-dir`: Custom directory to save frames (optional)
+
+After running the script, the frames will be saved in `results/simple_animation/frames/` and an HTML slideshow will be created at `results/simple_animation/slideshow.html`.
+
+### Advanced Simulation with PINNs
+
+For the full physics-informed neural network simulation:
+
+```bash
+python examples/crystal_growth_video.py
+```
+
+Options:
+- `--frames`: Number of frames in the video
+- `--duration`: Duration of the video in seconds
+- `--fps`: Frames per second
+- `--model`: Path to saved model (optional)
+- `--train`: Force training a new model
+
+## File Structure
+
+- `equations/`: Contains the physical equations including Navier-Stokes
+- `models/`: Neural network architectures (MLP, SIREN, GNPINN)
+- `utils/`: Utility functions for training and visualization
+- `examples/`: Example scripts
+  - `simple_animation.py`: Creates frame-by-frame animation
+  - `crystal_growth_video.py`: Full PINN-based simulation
+
+## Visualization
+
+The simulation creates both individual frames and an HTML slideshow for viewing the results. Open the slideshow in a web browser to see the animation with playback controls. 
