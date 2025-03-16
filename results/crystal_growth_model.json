@@ -1,0 +1,29 @@
+{
+    "equation": "navier_stokes_crystal",
+    "domain_ranges": {
+        "x": [
+            0,
+            1
+        ],
+        "y": [
+            0,
+            1
+        ],
+        "t": [
+            0,
+            0.5
+        ]
+    },
+    "viscosity": 0.01,
+    "thermal_diffusivity": 0.005,
+    "density": 1.0,
+    "network_type": "mlp",
+    "hidden_layers": 4,
+    "neurons": 50,
+    "use_gn": false,
+    "final_losses": {
+        "pde_loss": 0.0001384510687785223,
+        "bc_ic_loss": 0.0018330360762774944,
+        "total_loss": 0.0019714871887117624
+    }
+}
