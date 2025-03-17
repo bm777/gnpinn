@@ -29,8 +29,8 @@ A modular framework implementing Physics-Informed Neural Networks (PINNs) with G
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/gs-pinn.git
-cd gs-pinn
+git clone https://github.com/bm777/gnpinn.git
+cd gn-pinn
 
 # Create a virtual environment (optional but recommended)
 python -m venv venv
