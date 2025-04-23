@@ -1,4 +1,4 @@
-# GS-PINN: Gradient-Normalized Physics-Informed Neural Networks
+# GNPINN: Gradient-Normalized Physics-Informed Neural Networks
 
 A modular framework implementing Physics-Informed Neural Networks (PINNs) with Gradient Normalization for solving differential equations including Navier-Stokes equations for crystal growth modeling.
 
