@@ -30,7 +30,7 @@ A modular framework implementing Physics-Informed Neural Networks (PINNs) with G
 ```bash
 # Clone the repository
 git clone https://github.com/bm777/gnpinn.git
-cd gn-pinn
+cd gnpinn
 
 # Create a virtual environment (optional but recommended)
 python -m venv venv
