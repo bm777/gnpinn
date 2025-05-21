@@ -420,3 +420,225 @@ class NavierStokes2D(PDEBase):
         filtered_points.requires_grad_(True)
         
         return filtered_points 
+
+
+class NavierStokes3D(PDEBase):
+    """
+    Represents the 3D Navier-Stokes equations.
+    """
+    def __init__(self, domain_ranges=None, viscosity=0.01, density=1.0, device=None):
+        """
+        Initializes the NavierStokes3D object.
+
+        Args:
+            domain_ranges (dict, optional): Dictionary specifying the domain ranges
+                                            for x, y, z, and t.
+                                            Defaults to {'x': [0, 1], 'y': [0, 1],
+                                                         'z': [0, 1], 't': [0, 1]}.
+            viscosity (float, optional): Viscosity of the fluid. Defaults to 0.01.
+            density (float, optional): Density of the fluid. Defaults to 1.0.
+            device (str, optional): Device to run the calculations on. Defaults to None (cpu).
+        """
+        if domain_ranges is None:
+            domain_ranges = {'x': [0, 1], 'y': [0, 1], 'z': [0, 1], 't': [0, 1]}
+        super().__init__(domain_ranges, device) # Pass device to parent
+        self.viscosity = viscosity
+        self.density = density
+
+    def compute_residual(self, model, points):
+        """
+        Computes the residuals of the 3D Navier-Stokes equations.
+
+        Args:
+            model (torch.nn.Module): The neural network model.
+                                     Outputs u, v, w, p.
+            points (torch.Tensor): Input points (x, y, z, t) for the model.
+                                   Requires grad for derivative calculations.
+
+        Returns:
+            torch.Tensor: A tensor containing the four residuals (x-momentum,
+                          y-momentum, z-momentum, continuity) stacked.
+        """
+        points.requires_grad_(True)
+        x, y, z, t = points[:, 0:1], points[:, 1:2], points[:, 2:3], points[:, 3:4]
+
+        # Model output: u, v, w, p
+        output = model(points)
+        u = output[:, 0:1]
+        v = output[:, 1:2]
+        w = output[:, 2:3]
+        p = output[:, 3:4]
+
+        # First derivatives
+        grad_u = torch.autograd.grad(u, points, grad_outputs=torch.ones_like(u), create_graph=True)[0]
+        du_dx, du_dy, du_dz, du_dt = grad_u[:, 0:1], grad_u[:, 1:2], grad_u[:, 2:3], grad_u[:, 3:4]
+
+        grad_v = torch.autograd.grad(v, points, grad_outputs=torch.ones_like(v), create_graph=True)[0]
+        dv_dx, dv_dy, dv_dz, dv_dt = grad_v[:, 0:1], grad_v[:, 1:2], grad_v[:, 2:3], grad_v[:, 3:4]
+
+        grad_w = torch.autograd.grad(w, points, grad_outputs=torch.ones_like(w), create_graph=True)[0]
+        dw_dx, dw_dy, dw_dz, dw_dt = grad_w[:, 0:1], grad_w[:, 1:2], grad_w[:, 2:3], grad_w[:, 3:4]
+
+        grad_p = torch.autograd.grad(p, points, grad_outputs=torch.ones_like(p), create_graph=True)[0]
+        dp_dx, dp_dy, dp_dz = grad_p[:, 0:1], grad_p[:, 1:2], grad_p[:, 2:3]
+
+
+        # Second derivatives (Laplacian components)
+        # For u
+        du_dx_grads = torch.autograd.grad(du_dx, points, grad_outputs=torch.ones_like(du_dx), create_graph=True)[0]
+        d2u_dx2 = du_dx_grads[:, 0:1]
+        
+        du_dy_grads = torch.autograd.grad(du_dy, points, grad_outputs=torch.ones_like(du_dy), create_graph=True)[0]
+        d2u_dy2 = du_dy_grads[:, 1:2]
+
+        du_dz_grads = torch.autograd.grad(du_dz, points, grad_outputs=torch.ones_like(du_dz), create_graph=True)[0]
+        d2u_dz2 = du_dz_grads[:, 2:3]
+
+        # For v
+        dv_dx_grads = torch.autograd.grad(dv_dx, points, grad_outputs=torch.ones_like(dv_dx), create_graph=True)[0]
+        d2v_dx2 = dv_dx_grads[:, 0:1]
+
+        dv_dy_grads = torch.autograd.grad(dv_dy, points, grad_outputs=torch.ones_like(dv_dy), create_graph=True)[0]
+        d2v_dy2 = dv_dy_grads[:, 1:2]
+
+        dv_dz_grads = torch.autograd.grad(dv_dz, points, grad_outputs=torch.ones_like(dv_dz), create_graph=True)[0]
+        d2v_dz2 = dv_dz_grads[:, 2:3]
+
+        # For w
+        dw_dx_grads = torch.autograd.grad(dw_dx, points, grad_outputs=torch.ones_like(dw_dx), create_graph=True)[0]
+        d2w_dx2 = dw_dx_grads[:, 0:1]
+
+        dw_dy_grads = torch.autograd.grad(dw_dy, points, grad_outputs=torch.ones_like(dw_dy), create_graph=True)[0]
+        d2w_dy2 = dw_dy_grads[:, 1:2]
+
+        dw_dz_grads = torch.autograd.grad(dw_dz, points, grad_outputs=torch.ones_like(dw_dz), create_graph=True)[0]
+        d2w_dz2 = dw_dz_grads[:, 2:3]
+
+
+        # Navier-Stokes equations
+        # x-momentum
+        residual_u = (self.density * (du_dt + u * du_dx + v * du_dy + w * du_dz) +
+                      dp_dx -
+                      self.viscosity * (d2u_dx2 + d2u_dy2 + d2u_dz2))
+
+        # y-momentum
+        residual_v = (self.density * (dv_dt + u * dv_dx + v * dv_dy + w * dv_dz) +
+                      dp_dy -
+                      self.viscosity * (d2v_dx2 + d2v_dy2 + d2v_dz2))
+        
+        # z-momentum
+        residual_w = (self.density * (dw_dt + u * dw_dx + v * dw_dy + w * dw_dz) +
+                      dp_dz -
+                      self.viscosity * (d2w_dx2 + d2w_dy2 + d2w_dz2))
+
+        # Continuity equation
+        residual_continuity = du_dx + dv_dy + dw_dz
+
+        return torch.cat((residual_u, residual_v, residual_w, residual_continuity), dim=1)
+
+    def get_boundary_conditions(self, n_points_face=10): # n_points_face defines points per face edge, so n_points_face^2 per face
+        """
+        Generates boundary condition points and values for a 3D box domain.
+        For now, values are zeros (e.g., u=v=w=0, p=0).
+
+        Args:
+            n_points_face (int, optional): Number of points along each edge of a face.
+                                     Total points will be 6 * n_points_face^2.
+                                     Defaults to 10 (100 points per face).
+
+        Returns:
+            dict: A dictionary containing 'points' (x,y,z,t) and 'values' (u,v,w,p).
+        """
+        points_list = []
+        dtype = torch.float32 # Default dtype
+        device = self.device # Use device specified in __init__
+
+        # Define coordinate ranges
+        x_min, x_max = self.domain_ranges['x']
+        y_min, y_max = self.domain_ranges['y']
+        z_min, z_max = self.domain_ranges['z']
+        t_min, t_max = self.domain_ranges['t'] # For boundary conditions, t can vary
+
+        # Linspace for face coordinates and time
+        coords1 = torch.linspace(0, 1, n_points_face, device=device, dtype=dtype) # Placeholder for actual range mapping
+        coords2 = torch.linspace(0, 1, n_points_face, device=device, dtype=dtype) # Placeholder for actual range mapping
+        t_coords = torch.linspace(t_min, t_max, n_points_face, device=device, dtype=dtype) # Sample time across boundary points
+
+        # Helper to create points on a face
+        def create_face(fixed_coord, val, coord1_map_fn, coord2_map_fn, t_coord_map_fn):
+            c1_grid, c2_grid, t_grid = torch.meshgrid(coords1, coords2, t_coords, indexing='ij')
+            
+            # Map normalized coords (0-1) to actual domain values
+            mapped_c1 = coord1_map_fn(c1_grid.flatten())
+            mapped_c2 = coord2_map_fn(c2_grid.flatten())
+            mapped_t = t_coord_map_fn(t_grid.flatten()) # t is already in its range
+
+            if fixed_coord == 'x':
+                return torch.stack([torch.full_like(mapped_c1, val), mapped_c1, mapped_c2, mapped_t], dim=-1)
+            elif fixed_coord == 'y':
+                return torch.stack([mapped_c1, torch.full_like(mapped_c1, val), mapped_c2, mapped_t], dim=-1)
+            elif fixed_coord == 'z':
+                return torch.stack([mapped_c1, mapped_c2, torch.full_like(mapped_c1, val), mapped_t], dim=-1)
+
+        # Map functions for each dimension from [0,1] to [min_val, max_val]
+        map_x = lambda c: x_min + (x_max - x_min) * c
+        map_y = lambda c: y_min + (y_max - y_min) * c
+        map_z = lambda c: z_min + (z_max - z_min) * c
+        map_t = lambda t_val: t_val # t_coords is already generated in the correct range
+
+
+        # Face x = x_min
+        points_list.append(create_face('x', x_min, map_y, map_z, map_t))
+        # Face x = x_max
+        points_list.append(create_face('x', x_max, map_y, map_z, map_t))
+        # Face y = y_min
+        points_list.append(create_face('y', y_min, map_x, map_z, map_t))
+        # Face y = y_max
+        points_list.append(create_face('y', y_max, map_x, map_z, map_t))
+        # Face z = z_min
+        points_list.append(create_face('z', z_min, map_x, map_y, map_t))
+        # Face z = z_max
+        points_list.append(create_face('z', z_max, map_x, map_y, map_t))
+
+        boundary_points = torch.cat(points_list, dim=0)
+        
+        # Placeholder values: u, v, w, p = 0
+        boundary_values = torch.zeros((boundary_points.shape[0], 4), device=device, dtype=dtype)
+        
+        return {'points': boundary_points, 'values': boundary_values}
+
+
+    def get_initial_conditions(self, n_points_x=50, n_points_y=50, n_points_z=50):
+        """
+        Generates initial condition points and values at t=t_min (usually 0).
+        For now, values are zeros (e.g., fluid at rest u=v=w=0, p=0).
+
+        Args:
+            n_points_x (int, optional): Number of points in the x-direction. Defaults to 50.
+            n_points_y (int, optional): Number of points in the y-direction. Defaults to 50.
+            n_points_z (int, optional): Number of points in the z-direction. Defaults to 50.
+
+        Returns:
+            dict: A dictionary containing 'points' (x,y,z,t=t_min) and 
+                  'values' (u,v,w,p at t=t_min).
+        """
+        dtype = torch.float32 # Default dtype
+        device = self.device # Use device specified in __init__
+
+        x_coords = torch.linspace(self.domain_ranges['x'][0], self.domain_ranges['x'][1], n_points_x, device=device, dtype=dtype)
+        y_coords = torch.linspace(self.domain_ranges['y'][0], self.domain_ranges['y'][1], n_points_y, device=device, dtype=dtype)
+        z_coords = torch.linspace(self.domain_ranges['z'][0], self.domain_ranges['z'][1], n_points_z, device=device, dtype=dtype)
+        
+        grid_x, grid_y, grid_z = torch.meshgrid(x_coords, y_coords, z_coords, indexing='ij')
+        
+        initial_points = torch.stack([
+            grid_x.flatten(),
+            grid_y.flatten(),
+            grid_z.flatten(),
+            torch.full_like(grid_x.flatten(), self.domain_ranges['t'][0])  # t = t_min
+        ], dim=-1)
+
+        # Placeholder values: u, v, w, p = 0 (fluid at rest)
+        initial_values = torch.zeros((initial_points.shape[0], 4), device=device, dtype=dtype)
+        
+        return {'points': initial_points, 'values': initial_values}
